@@ -7,7 +7,7 @@ use App\Bitrix24\Bitrix24APIException;
 
 class Bitrix
 {
-    protected string $webhookURL = 'https://b24-some-segment.bitrix24.com/rest/1/some-hash/';
+    protected string $webhookURL = 'https://bitrix24.loc/rest/1/2334xo23yislz1g4/';
     protected Bitrix24API $bitrixInstance;
 
     public function __construct()
@@ -61,5 +61,49 @@ class Bitrix
             }
         }
         return $convertedUsers;
+    }
+
+    public function updateContacts() {
+
+        $fp = @fopen("clearUsers.txt", "r");
+        if ($fp) {
+            while (($buffer = fgets($fp, 4096)) !== false) {
+                $update_contact = unserialize($buffer);
+                $bitrix_contact =  $this->bitrixInstance->getContact($update_contact['ID']);
+
+                $delete_emails = [
+                    'EMAIL' => []
+                ];
+
+                //удалить прошлые email
+                if (isset($bitrix_contact['EMAIL'])) {
+                    foreach ($bitrix_contact['EMAIL'] as $key => $field_email) {
+                        $delete_emails['EMAIL'][] = [
+                            "ID" => $field_email['ID'],
+                            "VALUE" => '',
+                            "VALUE_TYPE" => "WORK"
+                        ];
+                    }
+                    $this->bitrixInstance->updateContact($update_contact['ID'],$delete_emails);
+                }
+
+                //прочитать emails из файла
+                $filerow_emails = explode(',',$update_contact['EMAILS']);
+                $update_emails = [
+                    'EMAIL' => []
+                ];
+                foreach ($filerow_emails as $key => $email) {
+                    $update_emails['EMAIL'][] = [
+                        "VALUE" => $email,
+                        "VALUE_TYPE" => "WORK"
+                    ];
+                }
+                $this->bitrixInstance->updateContact($update_contact['ID'],$update_emails);
+            }
+            if (!feof($fp)) {
+                echo "Ошибка: fgets() неожиданно потерпел неудачу\n";
+            }
+            fclose($fp);
+        }
     }
 }
