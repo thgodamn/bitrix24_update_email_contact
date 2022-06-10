@@ -50,18 +50,19 @@ class DB
 
         while ($row = $stmt->fetch()) {
 
-            $emails = explode(',',$row['emails']);
+            $emails = unserialize($row['emails']);
             $isInvalidEmail = false;
 
-            foreach ($emails as $key => $email) {
+            foreach ($emails as $key => &$email) {
                 $matches = array();
-                if (preg_match($regex, $email, $matches)) {
-                    unset($emails[$key]);
+                if (preg_match($regex, $email['VALUE'], $matches)) {
+                    $email['VALUE'] = '';
                     $isInvalidEmail = true;
                 }
             }
             if ($isInvalidEmail)
-                fwrite($fp, serialize(['ID' => $row['id'], 'EMAILS' => implode($emails)]) . PHP_EOL);
+                fwrite($fp, serialize(['ID' => $row['user_id'], 'EMAIL' => serialize($emails)]). PHP_EOL);
+
         }
         fclose($fp);
     }

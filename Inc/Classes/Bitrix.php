@@ -27,14 +27,15 @@ class Bitrix
 
     public function getUsers()
     {
+
         try {
             $users = $this->bitrixInstance->getContactList([], ['ID', 'EMAIL']);
-
             return $this->convertUsers($users);
         } catch (\Exception $e) {
             echo "Error: {$e->getMessage()}";
             die();
         }
+
     }
 
     protected function convertUsers(\Generator $generatorUsers): array
@@ -43,16 +44,7 @@ class Bitrix
         /* Generator return users in array by 50 items */
         foreach ($generatorUsers as $users) {
             foreach ($users as $user) {
-
-                $emails      = $user['EMAIL'];
-                $emailsArray = [];
-
-                if ( ! empty($emails) && is_array($emails)) {
-                    foreach ($emails as $email) {
-                        $emailsArray[] = $email['VALUE'];
-                    }
-                }
-                $emailsString     = implode(',', $emailsArray);
+                $emailsString     = serialize($user['EMAIL']);
                 $convertedUsers[] = [
                     'id'     => $user['ID'],
                     'emails' => $emailsString,
@@ -65,45 +57,24 @@ class Bitrix
 
     public function updateContacts() {
 
+        $contacts = [];
         $fp = @fopen("clearUsers.txt", "r");
         if ($fp) {
+
             while (($buffer = fgets($fp, 4096)) !== false) {
-                $update_contact = unserialize($buffer);
-                $bitrix_contact =  $this->bitrixInstance->getContact($update_contact['ID']);
+                $contact = unserialize($buffer);
+                $contact['EMAIL'] = unserialize($contact['EMAIL']);
+                $contacts[] = $contact;
 
-                $delete_emails = [
-                    'EMAIL' => []
-                ];
-
-                //удалить прошлые email
-                if (isset($bitrix_contact['EMAIL'])) {
-                    foreach ($bitrix_contact['EMAIL'] as $key => $field_email) {
-                        $delete_emails['EMAIL'][] = [
-                            "ID" => $field_email['ID'],
-                            "VALUE" => '',
-                            "VALUE_TYPE" => "WORK"
-                        ];
-                    }
-                    $this->bitrixInstance->updateContact($update_contact['ID'],$delete_emails);
-                }
-
-                //прочитать emails из файла
-                $filerow_emails = explode(',',$update_contact['EMAILS']);
-                $update_emails = [
-                    'EMAIL' => []
-                ];
-                foreach ($filerow_emails as $key => $email) {
-                    $update_emails['EMAIL'][] = [
-                        "VALUE" => $email,
-                        "VALUE_TYPE" => "WORK"
-                    ];
-                }
-                $this->bitrixInstance->updateContact($update_contact['ID'],$update_emails);
             }
+
+            $this->bitrixInstance->updateContacts($contacts);
+
             if (!feof($fp)) {
                 echo "Ошибка: fgets() неожиданно потерпел неудачу\n";
             }
             fclose($fp);
         }
+
     }
 }
